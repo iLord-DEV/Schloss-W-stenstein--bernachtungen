@@ -1,5 +1,5 @@
 <?php
-// Verhindert den direkten Aufruf der Datei
+// Prevent direct access to this file
 if (!defined('ABSPATH')) exit;
 
 // Register Custom Post Type for Übernachtungen
@@ -10,33 +10,33 @@ function wuest_register_consumption_cpt()
         'singular_name'         => _x('Übernachtung', 'Post Type Singular Name', 'wuest'),
         'menu_name'             => __('Übernachtungen', 'wuest'),
         'name_admin_bar'        => __('Übernachtung', 'wuest'),
-        'archives'              => __('Entry Archives', 'wuest'),
-        'attributes'            => __('Entry Attributes', 'wuest'),
-        'parent_item_colon'     => __('Parent Entry:', 'wuest'),
-        'all_items'             => __('All Entries', 'wuest'),
-        'add_new_item'          => __('Add New Entry', 'wuest'),
+        'archives'              => __('Übernachtung Archives', 'wuest'),
+        'attributes'            => __('Übernachtung Attributes', 'wuest'),
+        'parent_item_colon'     => __('Parent Übernachtung:', 'wuest'),
+        'all_items'             => __('All Übernachtungen', 'wuest'),
+        'add_new_item'          => __('Add New Übernachtung', 'wuest'),
         'add_new'               => __('Add New', 'wuest'),
-        'new_item'              => __('New Entry', 'wuest'),
-        'edit_item'             => __('Edit Entry', 'wuest'),
-        'update_item'           => __('Update Entry', 'wuest'),
-        'view_item'             => __('View Entry', 'wuest'),
-        'view_items'            => __('View Entries', 'wuest'),
-        'search_items'          => __('Search Entry', 'wuest'),
+        'new_item'              => __('New Übernachtung', 'wuest'),
+        'edit_item'             => __('Edit Übernachtung', 'wuest'),
+        'update_item'           => __('Update Übernachtung', 'wuest'),
+        'view_item'             => __('View Übernachtung', 'wuest'),
+        'view_items'            => __('View Übernachtungen', 'wuest'),
+        'search_items'          => __('Search Übernachtung', 'wuest'),
         'not_found'             => __('Not found', 'wuest'),
         'not_found_in_trash'    => __('Not found in Trash', 'wuest'),
         'featured_image'        => __('Featured Image', 'wuest'),
         'set_featured_image'    => __('Set featured image', 'wuest'),
         'remove_featured_image' => __('Remove featured image', 'wuest'),
         'use_featured_image'    => __('Use as featured image', 'wuest'),
-        'insert_into_item'      => __('Insert into entry', 'wuest'),
-        'uploaded_to_this_item' => __('Uploaded to this entry', 'wuest'),
-        'items_list'            => __('Entries list', 'wuest'),
-        'items_list_navigation' => __('Entries list navigation', 'wuest'),
-        'filter_items_list'     => __('Filter entries list', 'wuest'),
+        'insert_into_item'      => __('Insert into Übernachtung', 'wuest'),
+        'uploaded_to_this_item' => __('Uploaded to this Übernachtung', 'wuest'),
+        'items_list'            => __('Übernachtungen list', 'wuest'),
+        'items_list_navigation' => __('Übernachtungen list navigation', 'wuest'),
+        'filter_items_list'     => __('Filter Übernachtungen list', 'wuest'),
     );
     $args = array(
         'label'                 => __('Übernachtung', 'wuest'),
-        'description'           => __('A record of oil consumption for a specific period', 'wuest'),
+        'description'           => __('Overnight stays and costs for Schloss Wüstenstein', 'wuest'),
         'labels'                => $labels,
         'supports'              => array('title', 'author', 'custom-fields'),
         'hierarchical'          => false,
@@ -44,57 +44,65 @@ function wuest_register_consumption_cpt()
         'show_ui'               => true,
         'show_in_menu'          => true,
         'menu_position'         => 5,
+        'menu_icon'             => 'dashicons-calendar',
         'show_in_admin_bar'     => true,
         'show_in_nav_menus'     => false,
         'can_export'            => true,
         'has_archive'           => false,
         'exclude_from_search'   => true,
         'publicly_queryable'    => false,
-        'capability_type'       => array('uebernachtung', 'consumption_entries'),
+        'capability_type'       => 'post',
+        'capabilities'          => array(
+            'edit_post'         => 'edit_post',
+            'read_post'         => 'read_post',
+            'delete_post'       => 'delete_post',
+            'edit_posts'        => 'edit_posts',
+            'edit_others_posts' => 'edit_others_posts',
+            'publish_posts'     => 'publish_posts',
+            'read_private_posts' => 'read_private_posts',
+        ),
         'map_meta_cap'          => true,
     );
     register_post_type('uebernachtung', $args);
 }
-add_action('init', 'wuest_register_consumption_cpt', 0);
 
 // Add role capabilities
 function wuest_add_role_caps()
 {
-    $roles = array('administrator', 'editor', 'author', 'contributor', 'subscriber');
+    $roles = array('administrator', 'editor', 'author');
 
     foreach ($roles as $role) {
         $role_obj = get_role($role);
         if (!$role_obj) continue;
 
-        $role_obj->add_cap('read_uebernachtung');
         $role_obj->add_cap('edit_uebernachtung');
-        $role_obj->add_cap('edit_consumption_entries');
+        $role_obj->add_cap('read_uebernachtung');
         $role_obj->add_cap('delete_uebernachtung');
-        $role_obj->add_cap('delete_consumption_entries');
-        $role_obj->add_cap('publish_consumption_entries');
-        $role_obj->add_cap('create_consumption_entries');
+        $role_obj->add_cap('edit_uebernachtungen');
+        $role_obj->add_cap('edit_others_uebernachtungen');
+        $role_obj->add_cap('publish_uebernachtungen');
+        $role_obj->add_cap('read_private_uebernachtungen');
     }
 }
-register_activation_hook(__FILE__, 'wuest_add_role_caps');
 
 // Add Custom Fields to the CPT using ACF
-function wuest_add_consumption_fields()
+function wuest_add_custom_fields()
 {
     if (function_exists('acf_add_local_field_group')):
         acf_add_local_field_group(array(
-            'key' => 'group_613f3a4b8f3e4',
-            'title' => 'Übernachtungen',
+            'key' => 'group_uebernachtung',
+            'title' => 'Übernachtung Details',
             'fields' => array(
                 array(
-                    'key' => 'field_613f3a54c2bb5',
+                    'key' => 'field_burner_hours',
                     'label' => 'Burner Operating Hours',
-                    'name' => 'uebernachtungen',
+                    'name' => 'burner_hours',
                     'type' => 'number',
                     'required' => 1,
                     'min' => 0,
                 ),
                 array(
-                    'key' => 'field_613f3a65c2bb6',
+                    'key' => 'field_arrival_date',
                     'label' => 'Arrival Date',
                     'name' => 'arrival_date',
                     'type' => 'date_picker',
@@ -104,7 +112,7 @@ function wuest_add_consumption_fields()
                     'first_day' => 1,
                 ),
                 array(
-                    'key' => 'field_613f3a77c2bb7',
+                    'key' => 'field_departure_date',
                     'label' => 'Departure Date',
                     'name' => 'departure_date',
                     'type' => 'date_picker',
@@ -148,75 +156,12 @@ function wuest_add_consumption_fields()
             'active' => true,
             'description' => '',
         ));
-
-        // Add Admin Settings Fields
-        acf_add_local_field_group(array(
-            'key' => 'group_wuest_admin_settings',
-            'title' => 'Burner Hours Admin Settings',
-            'fields' => array(
-                array(
-                    'key' => 'field_wuest_consumption_rate',
-                    'label' => 'Consumption Rate (Liters per Burner Hour)',
-                    'name' => 'wuest_consumption_rate',
-                    'type' => 'number',
-                    'required' => 1,
-                    'default_value' => 1,
-                    'min' => 0,
-                    'step' => 0.01,
-                ),
-                array(
-                    'key' => 'field_wuest_show_all_entries',
-                    'label' => 'Show All Entries',
-                    'name' => 'wuest_show_all_entries',
-                    'type' => 'true_false',
-                    'instructions' => 'Show all consumption entries in the admin area',
-                    'ui' => 1,
-                ),
-                array(
-                    'key' => 'field_wuest_family_overnight_price',
-                    'label' => 'Price per Family Overnight Stay (€)',
-                    'name' => 'wuest_family_overnight_price',
-                    'type' => 'number',
-                    'required' => 1,
-                    'default_value' => 0,
-                    'min' => 0,
-                    'step' => 0.01,
-                ),
-                array(
-                    'key' => 'field_wuest_guest_overnight_price',
-                    'label' => 'Price per Guest Overnight Stay (€)',
-                    'name' => 'wuest_guest_overnight_price',
-                    'type' => 'number',
-                    'required' => 1,
-                    'default_value' => 0,
-                    'min' => 0,
-                    'step' => 0.01,
-                ),
-            ),
-            'location' => array(
-                array(
-                    array(
-                        'param' => 'options_page',
-                        'operator' => '==',
-                        'value' => 'wuest_burner_hours_settings',
-                    ),
-                ),
-            ),
-            'menu_order' => 0,
-            'position' => 'normal',
-            'style' => 'default',
-            'label_placement' => 'top',
-            'instruction_placement' => 'label',
-            'hide_on_screen' => '',
-            'active' => true,
-            'description' => '',
-        ));
     endif;
 }
-add_action('acf/init', 'wuest_add_consumption_fields');
+add_action('acf/init', 'wuest_add_custom_fields');
 
 // Filter posts in admin to show only user's own posts (with option for admins)
-function wuest_filter_consumption_entries_for_current_user($query)
+function wuest_filter_uebernachtungen_for_current_user($query)
 {
     global $pagenow, $post_type;
 
@@ -224,14 +169,13 @@ function wuest_filter_consumption_entries_for_current_user($query)
         $show_all_entries = get_option('wuest_show_all_entries', false);
 
         if (!current_user_can('administrator') || !$show_all_entries) {
-            // Nur eigene Einträge anzeigen
             $query->set('author', get_current_user_id());
         }
     }
 }
-add_action('pre_get_posts', 'wuest_filter_consumption_entries_for_current_user');
+add_action('pre_get_posts', 'wuest_filter_uebernachtungen_for_current_user');
 
-// Set post author to current user when creating a new consumption entry
+// Set post author to current user when creating a new Übernachtung entry
 function wuest_set_uebernachtung_author($data)
 {
     if ($data['post_type'] == 'uebernachtung') {

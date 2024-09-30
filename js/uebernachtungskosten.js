@@ -1,68 +1,71 @@
 (function ($) {
+  console.log('Script wird geladen');
+
   $(document).ready(function () {
-    // Versteckte Eingabefelder für die tatsächlichen Anreise- und Abreisedaten (ISO-Format)
-    const arrivalDateInput = $('input[name="acf[field_613f3a65c2bb6]"]');
-    const departureDateInput = $('input[name="acf[field_613f3a77c2bb7]"]');
+    console.log('Document ready');
 
     // Greife auf die sichtbaren Datepicker-Felder zu
-    const visibleDatepickers = $('.hasDatepicker');
+    const arrivalDatepicker = $(
+      '.acf-field-date-picker[data-name="arrival_date"] input.input'
+    );
+    const departureDatepicker = $(
+      '.acf-field-date-picker[data-name="departure_date"] input.input'
+    );
 
-    if (visibleDatepickers.length) {
-      // Füge den `change`-Event-Listener für beide Felder hinzu
-      visibleDatepickers.on('change', function () {
-        // Werte der versteckten Felder überprüfen
+    console.log('Anreise-Datepicker gefunden:', arrivalDatepicker.length);
+    console.log('Abreise-Datepicker gefunden:', departureDatepicker.length);
+
+    if (arrivalDatepicker.length && departureDatepicker.length) {
+      arrivalDatepicker.add(departureDatepicker).on('change', function () {
+        console.log('Datepicker changed');
+        console.log(
+          'Geändertes Feld:',
+          $(this).closest('.acf-field').data('name')
+        );
+        console.log('Neuer Wert:', $(this).val());
         validateDates();
       });
+    } else {
+      console.log('Datepicker nicht gefunden');
     }
 
     function validateDates() {
-      // Datumswerte umformatieren von yyyyMMdd nach yyyy-mm-dd
-      const arrivalDateFormatted = formatDate(arrivalDateInput.val());
-      const departureDateFormatted = formatDate(departureDateInput.val());
+      console.log('validateDates aufgerufen');
+      const arrivalDateStr = arrivalDatepicker.val();
+      const departureDateStr = departureDatepicker.val();
 
-      const arrivalDate = new Date(arrivalDateFormatted);
-      const departureDate = new Date(departureDateFormatted);
+      console.log('Anreise:', arrivalDateStr);
+      console.log('Abreise:', departureDateStr);
 
-      // Überprüfung, ob das Abreisedatum leer ist
-      if (!departureDateFormatted) {
+      const arrivalDate = parseDate(arrivalDateStr);
+      const departureDate = parseDate(departureDateStr);
+
+      console.log('Parsed Anreise:', arrivalDate);
+      console.log('Parsed Abreise:', departureDate);
+
+      if (!departureDate) {
+        console.log('Abreisedatum ist leer');
         return;
       }
 
-      // Überprüfung, ob das Abreisedatum vor dem Anreisedatum liegt
       if (departureDate < arrivalDate) {
+        console.log('Abreisedatum liegt vor Anreisedatum');
         alert('Das Abreisedatum darf nicht vor dem Anreisedatum liegen.');
-
-        // Setze das Abreisedatum im versteckten Feld und Datepicker zurück
-        departureDateInput.val(''); // Setze das versteckte Abreisedatum zurück
-
-        // Leere auch das sichtbare Datepicker-Feld
-        const departureDateVisible = visibleDatepickers.eq(1); // Abreisedatum-Field
-        departureDateVisible.val(''); // Sichtbares Feld leeren
-      }
-
-      // Falls der Benutzer das Anreisedatum geändert hat und das neue Anreisedatum vor dem bereits ausgewählten Abreisedatum liegt
-      if (arrivalDate > departureDate) {
-        // Lösche das Abreisedatum, da es nicht mehr korrekt ist
-        departureDateInput.val(''); // Setze das versteckte Abreisedatum zurück
-
-        // Leere auch das sichtbare Datepicker-Feld
-        const departureDateVisible = visibleDatepickers.eq(1); // Abreisedatum-Field
-        departureDateVisible.val(''); // Sichtbares Feld leeren
+        departureDatepicker.val('').trigger('change');
       }
     }
 
-    // Hilfsfunktion, um das Datumsformat von yyyyMMdd nach yyyy-mm-dd zu ändern
-    function formatDate(dateStr) {
-      if (dateStr && dateStr.length === 8) {
-        // Umwandeln von 20240901 nach 2024-09-01
-        return (
-          dateStr.slice(0, 4) +
-          '-' +
-          dateStr.slice(4, 6) +
-          '-' +
-          dateStr.slice(6, 8)
-        );
+    function parseDate(dateStr) {
+      console.log('Parsing date:', dateStr);
+      if (!dateStr) return null;
+
+      let parts = dateStr.split('/');
+      if (parts.length === 3) {
+        // Beachten Sie, dass wir hier '20' + parts[2] verwenden, um das Jahr vierstellig zu machen
+        return new Date(20 + parts[2], parts[1] - 1, parts[0]);
       }
+
+      console.log('Konnte Datum nicht parsen:', dateStr);
       return null;
     }
   });

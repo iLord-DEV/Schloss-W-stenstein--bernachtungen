@@ -1,16 +1,16 @@
 <?php
-// Sicherstellen, dass kein direkter Zugriff auf diese Datei möglich ist
+// Prevents direct access to the file
 if (!defined('ABSPATH')) exit;
 
 function wuest_add_dashboard_widgets()
 {
     wp_add_dashboard_widget(
         'wuest_dashboard_widget',
-        __('Oil Consumption Summary', 'wuest'),
+        __('Overnight Stays Summary', 'wuest'),
         'wuest_display_dashboard_widget'
     );
 
-    // Verschieben des Widgets an die erste Position und auf volle Breite setzen
+    // Move the widget to the first position and set full width
     global $wp_meta_boxes;
     $normal_dashboard = $wp_meta_boxes['dashboard']['normal']['core'];
     $widget_backup = array('wuest_dashboard_widget' => $normal_dashboard['wuest_dashboard_widget']);
@@ -108,12 +108,12 @@ function wuest_display_dashboard_widget()
 {
     $current_user = wp_get_current_user();
 
-    // Tailwind CSS einbinden
+    // Enqueue Tailwind CSS
     wp_enqueue_style('tailwind', 'https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
 
     echo '<div class="p-4">';
     echo '<h3 class="text-xl font-bold mb-2">' . __('Hello', 'wuest') . ' ' . esc_html($current_user->display_name) . '!</h3>';
-    echo '<p class="mb-4">' . __('Here you can see an overview of your oil consumption entries.', 'wuest') . '</p>';
+    echo '<p class="mb-4">' . __('Here you can see an overview of your overnight stay entries.', 'wuest') . '</p>';
 
     $show_all_users = isset($_GET['wuest_show_all_users']) && sanitize_text_field($_GET['wuest_show_all_users']) === 'on';
     $years_with_entries = wuest_get_years_with_posts($show_all_users ? null : $current_user->ID);
@@ -155,7 +155,7 @@ function wuest_display_dashboard_widget()
 
 function wuest_get_price_for_date($date, $price_history)
 {
-    $price = end($price_history); // Neuester Preis als Standardwert
+    $price = end($price_history); // Latest price as default
     foreach ($price_history as $change_date => $change_price) {
         if ($date >= $change_date) {
             $price = $change_price;
@@ -169,32 +169,27 @@ function wuest_display_user_data($user_id, $year)
 {
     global $wpdb;
 
-    $cache_key = "wuest_user_data_{$user_id}_{$year}";
-    $user_data = wp_cache_get($cache_key);
-
-    if ($user_data === false) {
-        $query_args = array(
-            'post_type' => 'consumption_entry',
-            'author' => $user_id,
-            'posts_per_page' => -1,
-            'orderby' => 'date',
-            'order' => 'DESC',
-            'meta_query' => array(
-                array(
-                    'key' => 'arrival_date',
-                    'value' => array($year . '0101', $year . '1231'),
-                    'compare' => 'BETWEEN',
-                    'type' => 'NUMERIC'
-                )
+    $query_args = array(
+        'post_type' => 'uebernachtung',
+        'author' => $user_id,
+        'posts_per_page' => -1,
+        'orderby' => 'meta_value',
+        'meta_key' => 'arrival_date',
+        'order' => 'DESC',
+        'meta_query' => array(
+            array(
+                'key' => 'arrival_date',
+                'value' => array($year . '0101', $year . '1231'),
+                'compare' => 'BETWEEN',
+                'type' => 'DATE'
             )
-        );
+        )
+    );
 
-        $user_data = new WP_Query($query_args);
-        wp_cache_set($cache_key, $user_data);
-    }
+    $user_data = new WP_Query($query_args);
 
     if (!$user_data->have_posts()) {
-        echo '<p>' . __('No entries found for this year.', 'wuest') . '</p>';
+        echo '<p>' . __('Keine Einträge für dieses Jahr gefunden.', 'wuest') . '</p>';
         return;
     }
 
@@ -206,7 +201,6 @@ function wuest_display_user_data($user_id, $year)
     $family_overnight_price_history = get_option('wuest_family_overnight_price_history', array());
     $guest_overnight_price_history = get_option('wuest_guest_overnight_price_history', array());
 
-    // Sortiere die Preishistorien nach Datum (neueste zuerst)
     krsort($family_overnight_price_history);
     krsort($guest_overnight_price_history);
 
@@ -214,13 +208,13 @@ function wuest_display_user_data($user_id, $year)
     echo '<table class="wuest-table">';
     echo '<thead>';
     echo '<tr>';
-    echo '<th>' . __('Title', 'wuest') . '</th>';
-    echo '<th>' . __('Arrival', 'wuest') . '</th>';
-    echo '<th>' . __('Departure', 'wuest') . '</th>';
-    echo '<th>' . __('Oil Costs (€)', 'wuest') . '</th>';
-    echo '<th>' . __('Family Stay Costs (€)', 'wuest') . '</th>';
-    echo '<th>' . __('Guest Stay Costs (€)', 'wuest') . '</th>';
-    echo '<th>' . __('Total Costs (€)', 'wuest') . '</th>';
+    echo '<th>' . __('Titel', 'wuest') . '</th>';
+    echo '<th>' . __('Ankunft', 'wuest') . '</th>';
+    echo '<th>' . __('Abreise', 'wuest') . '</th>';
+    echo '<th>' . __('Ölkosten (€)', 'wuest') . '</th>';
+    echo '<th>' . __('Familienübernachtungskosten (€)', 'wuest') . '</th>';
+    echo '<th>' . __('Gästeübernachtungskosten (€)', 'wuest') . '</th>';
+    echo '<th>' . __('Gesamtkosten (€)', 'wuest') . '</th>';
     echo '</tr>';
     echo '</thead>';
     echo '<tbody>';
@@ -239,10 +233,16 @@ function wuest_display_user_data($user_id, $year)
         $arrival_date = DateTime::createFromFormat('d/m/Y', $arrival_date_raw);
         $departure_date = DateTime::createFromFormat('d/m/Y', $departure_date_raw);
 
-        $formatted_arrival_date = $arrival_date ? $arrival_date->format('d. F') : __('Invalid Date', 'wuest');
-        $formatted_departure_date = $departure_date ? $departure_date->format('d. F') : __('Invalid Date', 'wuest');
+        if ($arrival_date === false || $departure_date === false) {
+            // Fehlerbehandlung für ungültige Datumsformate
+            error_log("Ungültiges Datumsformat für Eintrag ID " . get_the_ID() . ": Ankunft: $arrival_date_raw, Abreise: $departure_date_raw");
+            continue; // Überspringen Sie diesen Eintrag und fahren Sie mit dem nächsten fort
+        }
 
-        if ($arrival_date && $departure_date && $arrival_date->format('Y') !== $departure_date->format('Y')) {
+        $formatted_arrival_date = $arrival_date->format('d. F');
+        $formatted_departure_date = $departure_date->format('d. F');
+
+        if ($arrival_date->format('Y') !== $departure_date->format('Y')) {
             $formatted_arrival_date .= ' ' . $arrival_date->format('Y');
             $formatted_departure_date .= ' ' . $departure_date->format('Y');
         }
@@ -257,20 +257,20 @@ function wuest_display_user_data($user_id, $year)
         $total_costs += $entry_total;
 
         echo '<tr>';
-        echo '<td data-label="' . __('Title', 'wuest') . '">' . get_the_title() . '</td>';
-        echo '<td data-label="' . __('Arrival', 'wuest') . '">' . esc_html($formatted_arrival_date) . '</td>';
-        echo '<td data-label="' . __('Departure', 'wuest') . '">' . esc_html($formatted_departure_date) . '</td>';
-        echo '<td class="number" data-label="' . __('Oil Costs (€)', 'wuest') . '">' . number_format($oil_costs, 2, ',', '.') . ' €</td>';
-        echo '<td class="number" data-label="' . __('Family Stay Costs (€)', 'wuest') . '">' . number_format($family_costs, 2, ',', '.') . ' €</td>';
-        echo '<td class="number" data-label="' . __('Guest Stay Costs (€)', 'wuest') . '">' . number_format($guest_costs, 2, ',', '.') . ' €</td>';
-        echo '<td class="number" data-label="' . __('Total Costs (€)', 'wuest') . '">' . number_format($entry_total, 2, ',', '.') . ' €</td>';
+        echo '<td data-label="' . __('Titel', 'wuest') . '">' . get_the_title() . '</td>';
+        echo '<td data-label="' . __('Ankunft', 'wuest') . '">' . esc_html($formatted_arrival_date) . '</td>';
+        echo '<td data-label="' . __('Abreise', 'wuest') . '">' . esc_html($formatted_departure_date) . '</td>';
+        echo '<td class="number" data-label="' . __('Ölkosten (€)', 'wuest') . '">' . number_format($oil_costs, 2, ',', '.') . ' €</td>';
+        echo '<td class="number" data-label="' . __('Familienübernachtungskosten (€)', 'wuest') . '">' . number_format($family_costs, 2, ',', '.') . ' €</td>';
+        echo '<td class="number" data-label="' . __('Gästeübernachtungskosten (€)', 'wuest') . '">' . number_format($guest_costs, 2, ',', '.') . ' €</td>';
+        echo '<td class="number" data-label="' . __('Gesamtkosten (€)', 'wuest') . '">' . number_format($entry_total, 2, ',', '.') . ' €</td>';
         echo '</tr>';
     }
 
     echo '</tbody>';
     echo '<tfoot>';
     echo '<tr>';
-    echo '<td colspan="6">' . __('Total Costs', 'wuest') . '</td>';
+    echo '<td colspan="6">' . __('Gesamtkosten', 'wuest') . '</td>';
     echo '<td class="number">' . number_format($total_costs, 2, ',', '.') . ' €</td>';
     echo '</tr>';
     echo '</tfoot>';
@@ -279,33 +279,25 @@ function wuest_display_user_data($user_id, $year)
 
     wp_reset_postdata();
 }
-
 function wuest_display_all_users_data($year)
 {
-    global $wpdb;
-
-    $cache_key = "wuest_all_users_data_{$year}";
-    $all_users_data = wp_cache_get($cache_key);
-
-    if ($all_users_data === false) {
-        $query_args = array(
-            'post_type' => 'consumption_entry',
-            'posts_per_page' => -1,
-            'orderby' => 'date',
-            'order' => 'DESC',
-            'meta_query' => array(
-                array(
-                    'key' => 'arrival_date',
-                    'value' => array($year . '0101', $year . '1231'),
-                    'compare' => 'BETWEEN',
-                    'type' => 'NUMERIC'
-                )
+    $query_args = array(
+        'post_type' => 'uebernachtung',
+        'posts_per_page' => -1,
+        'orderby' => 'meta_value',
+        'meta_key' => 'arrival_date',
+        'order' => 'DESC',
+        'meta_query' => array(
+            array(
+                'key' => 'arrival_date',
+                'value' => array($year . '0101', $year . '1231'),
+                'compare' => 'BETWEEN',
+                'type' => 'DATE'
             )
-        );
+        )
+    );
 
-        $all_users_data = new WP_Query($query_args);
-        wp_cache_set($cache_key, $all_users_data);
-    }
+    $all_users_data = new WP_Query($query_args);
 
     if (!$all_users_data->have_posts()) {
         echo '<p>' . __('No entries found for this year.', 'wuest') . '</p>';
@@ -320,14 +312,12 @@ function wuest_display_all_users_data($year)
     $family_overnight_price_history = get_option('wuest_family_overnight_price_history', array());
     $guest_overnight_price_history = get_option('wuest_guest_overnight_price_history', array());
 
-    // Sortiere die Preishistorien nach Datum (neueste zuerst)
     krsort($family_overnight_price_history);
     krsort($guest_overnight_price_history);
 
     echo '<div class="wuest-table-container">';
     echo '<table class="wuest-table">';
-    echo '<thead>';
-    echo '<tr>';
+    echo '<thead><tr>';
     echo '<th>' . __('User', 'wuest') . '</th>';
     echo '<th>' . __('Title', 'wuest') . '</th>';
     echo '<th>' . __('Arrival', 'wuest') . '</th>';
@@ -336,9 +326,7 @@ function wuest_display_all_users_data($year)
     echo '<th>' . __('Family Stay Costs (€)', 'wuest') . '</th>';
     echo '<th>' . __('Guest Stay Costs (€)', 'wuest') . '</th>';
     echo '<th>' . __('Total Costs (€)', 'wuest') . '</th>';
-    echo '</tr>';
-    echo '</thead>';
-    echo '<tbody>';
+    echo '</tr></thead><tbody>';
 
     $total_costs = 0.0;
 
@@ -357,11 +345,6 @@ function wuest_display_all_users_data($year)
 
         $formatted_arrival_date = $arrival_date ? $arrival_date->format('d. F') : __('Invalid Date', 'wuest');
         $formatted_departure_date = $departure_date ? $departure_date->format('d. F') : __('Invalid Date', 'wuest');
-
-        if ($arrival_date && $departure_date && $arrival_date->format('Y') !== $departure_date->format('Y')) {
-            $formatted_arrival_date .= ' ' . $arrival_date->format('Y');
-            $formatted_departure_date .= ' ' . $departure_date->format('Y');
-        }
 
         $family_overnight_price = wuest_get_price_for_date($arrival_date->format('Y-m-d'), $family_overnight_price_history);
         $guest_overnight_price = wuest_get_price_for_date($arrival_date->format('Y-m-d'), $guest_overnight_price_history);
@@ -385,12 +368,10 @@ function wuest_display_all_users_data($year)
     }
 
     echo '</tbody>';
-    echo '<tfoot>';
-    echo '<tr>';
+    echo '<tfoot><tr>';
     echo '<td colspan="7">' . __('Total Costs', 'wuest') . '</td>';
     echo '<td class="number">' . number_format($total_costs, 2, ',', '.') . ' €</td>';
-    echo '</tr>';
-    echo '</tfoot>';
+    echo '</tr></tfoot>';
     echo '</table>';
     echo '</div>';
 
@@ -401,56 +382,35 @@ function wuest_get_years_with_posts($user_id = null)
 {
     global $wpdb;
 
-    $user_clause = '';
-    if ($user_id !== null) {
-        $user_clause = $wpdb->prepare("AND post_author = %d", $user_id);
-    }
+    $user_clause = $user_id ? $wpdb->prepare("AND post_author = %d", $user_id) : '';
 
-    $cache_key = "wuest_years_with_posts_{$user_id}";
-    $years = wp_cache_get($cache_key);
-
-    if ($years === false) {
-        $years = $wpdb->get_col("
-            SELECT DISTINCT YEAR(meta_value) 
-            FROM $wpdb->postmeta 
-            WHERE meta_key = 'arrival_date' 
-            AND post_id IN (
-                SELECT ID FROM $wpdb->posts WHERE post_type = 'consumption_entry' $user_clause
-            )
-            ORDER BY meta_value ASC
-        ");
-
-        wp_cache_set($cache_key, $years);
-    }
-
-    return $years;
+    return $wpdb->get_col("
+        SELECT DISTINCT YEAR(meta_value) 
+        FROM $wpdb->postmeta 
+        JOIN $wpdb->posts ON $wpdb->postmeta.post_id = $wpdb->posts.ID
+        WHERE meta_key = 'arrival_date' 
+        AND post_type = 'uebernachtung'
+        $user_clause
+        ORDER BY meta_value DESC
+    ");
 }
 
 function wuest_get_price_for_year($year, $yearly_prices)
 {
     $default_price = 1.0;
 
-    $cache_key = "wuest_price_for_year_{$year}";
-    $price = wp_cache_get($cache_key);
-
-    if ($price === false) {
-        if (empty($yearly_prices)) {
-            $price = $default_price;
-        } else {
-            while ($year > 0) {
-                if (isset($yearly_prices[$year])) {
-                    $price = (float)$yearly_prices[$year];
-                    break;
-                }
-                $year--;
-            }
-            $price = $price ?? $default_price;
-        }
-
-        wp_cache_set($cache_key, $price);
+    if (empty($yearly_prices)) {
+        return $default_price;
     }
 
-    return $price;
+    while ($year > 0) {
+        if (isset($yearly_prices[$year])) {
+            return (float)$yearly_prices[$year];
+        }
+        $year--;
+    }
+
+    return $default_price;
 }
 
 function wuest_export_csv()
@@ -462,7 +422,7 @@ function wuest_export_csv()
     $year = isset($_GET['year']) ? intval($_GET['year']) : date('Y');
 
     header('Content-Type: text/csv; charset=utf-8');
-    header('Content-Disposition: attachment; filename=consumption_data_' . $year . '.csv');
+    header('Content-Disposition: attachment; filename=uebernachtungen_' . $year . '.csv');
 
     $output = fopen('php://output', 'w');
 
@@ -481,16 +441,17 @@ function wuest_export_csv()
     ));
 
     $query_args = array(
-        'post_type' => 'consumption_entry',
+        'post_type' => 'uebernachtung',
         'posts_per_page' => -1,
-        'orderby' => 'date',
+        'orderby' => 'meta_value',
+        'meta_key' => 'arrival_date',
         'order' => 'DESC',
         'meta_query' => array(
             array(
                 'key' => 'arrival_date',
                 'value' => array($year . '0101', $year . '1231'),
                 'compare' => 'BETWEEN',
-                'type' => 'NUMERIC'
+                'type' => 'DATE'
             )
         )
     );
@@ -505,7 +466,6 @@ function wuest_export_csv()
     $family_overnight_price_history = get_option('wuest_family_overnight_price_history', array());
     $guest_overnight_price_history = get_option('wuest_guest_overnight_price_history', array());
 
-    // Sortiere die Preishistorien nach Datum (neueste zuerst)
     krsort($family_overnight_price_history);
     krsort($guest_overnight_price_history);
 

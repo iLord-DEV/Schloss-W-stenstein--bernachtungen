@@ -1,5 +1,5 @@
 <?php
-// Verhindert den direkten Aufruf der Datei
+// Prevents direct access to the file
 if (!defined('ABSPATH')) exit;
 
 function wuest_burner_hours_admin_menu()
@@ -17,11 +17,11 @@ add_action('admin_menu', 'wuest_burner_hours_admin_menu');
 
 function wuest_burner_hours_settings_page()
 {
-    // Nonce für die Sicherheit
+    // Security nonce
     $nonce_action = 'wuest_burner_hours_save_settings';
     $nonce_name = 'wuest_nonce';
 
-    // Werte aus der Datenbank abrufen
+    // Retrieve values from the database
     $yearly_prices = get_option('wuest_yearly_prices', array());
     $consumption_rate = get_option('wuest_consumption_rate', '1');
     $show_all_entries = get_option('wuest_show_all_entries', false);
@@ -32,10 +32,10 @@ function wuest_burner_hours_settings_page()
         $yearly_prices = array();
     }
 
-    // Jahre ohne Preis abrufen
+    // Retrieve years without price
     $years_without_price = wuest_get_years_without_price($yearly_prices);
 
-    // Tailwind CSS einbinden
+    // Enqueue Tailwind CSS
     wp_enqueue_style('tailwind', 'https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
 ?>
     <div class="wrap">
@@ -45,6 +45,7 @@ function wuest_burner_hours_settings_page()
             <?php wp_nonce_field($nonce_action, $nonce_name); ?>
             <input type="hidden" name="action" value="wuest_burner_hours_save_settings">
 
+            <!-- Global Settings -->
             <h2 class="text-xl font-semibold mb-4"><?php echo __('Global Settings', 'wuest'); ?></h2>
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2" for="wuest_consumption_rate">
@@ -71,6 +72,7 @@ function wuest_burner_hours_settings_page()
                 <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="wuest_guest_overnight_price" type="text" name="wuest_guest_overnight_price" value="<?php echo esc_attr($guest_overnight_price); ?>">
             </div>
 
+            <!-- Add Price for Year -->
             <?php if (!empty($years_without_price)) : ?>
                 <h2 class="text-xl font-semibold mb-4"><?php echo __('Add Price for Year', 'wuest'); ?></h2>
                 <div class="mb-4">
@@ -92,6 +94,7 @@ function wuest_burner_hours_settings_page()
                 </div>
             <?php endif; ?>
 
+            <!-- Existing Prices -->
             <?php if (!empty($yearly_prices)) : ?>
                 <h2 class="text-xl font-semibold mb-4"><?php echo __('Existing Prices', 'wuest'); ?></h2>
                 <div class="overflow-x-auto">
@@ -132,7 +135,7 @@ function wuest_burner_hours_settings_page()
 
 function wuest_burner_hours_save_settings()
 {
-    // Überprüfen der Nonce
+    // Check nonce
     if (!isset($_POST['wuest_nonce']) || !wp_verify_nonce($_POST['wuest_nonce'], 'wuest_burner_hours_save_settings')) {
         wp_die('Nonce verification failed.');
     }
@@ -143,17 +146,17 @@ function wuest_burner_hours_save_settings()
         $yearly_prices = array();
     }
 
-    // Verbrauchsrate speichern
+    // Save consumption rate
     if (isset($_POST['wuest_consumption_rate'])) {
         $consumption_rate = sanitize_text_field($_POST['wuest_consumption_rate']);
         update_option('wuest_consumption_rate', $consumption_rate);
     }
 
-    // Option für das Anzeigen aller Einträge speichern
+    // Save option for showing all entries
     $show_all_entries = isset($_POST['wuest_show_all_entries']) ? true : false;
     update_option('wuest_show_all_entries', $show_all_entries);
 
-    // Preise für Übernachtungen speichern
+    // Save overnight stay prices
     if (isset($_POST['wuest_family_overnight_price'])) {
         $family_overnight_price = sanitize_text_field($_POST['wuest_family_overnight_price']);
         $current_family_price = get_option('wuest_family_overnight_price', '0');
@@ -175,14 +178,12 @@ function wuest_burner_hours_save_settings()
         update_option('wuest_guest_overnight_price', $guest_overnight_price);
     }
 
-    // Jahr und Preis hinzufügen, nur wenn beide Felder ausgefüllt sind
+    // Add new year and price
     if (!empty($_POST['new_year']) && !empty($_POST['new_price'])) {
         $new_year = sanitize_text_field($_POST['new_year']);
         $new_price = sanitize_text_field($_POST['new_price']);
 
-        // Fehlerüberprüfung
         if (ctype_digit($new_year) && is_numeric($new_price)) {
-            // Jahr hinzufügen, wenn es noch nicht existiert
             if (!isset($yearly_prices[$new_year])) {
                 $yearly_prices[$new_year] = $new_price;
                 update_option('wuest_yearly_prices', $yearly_prices);
@@ -194,7 +195,7 @@ function wuest_burner_hours_save_settings()
         }
     }
 
-    // Entfernen eines Jahres
+    // Remove a year
     if (isset($_POST['wuest_remove_year'])) {
         $remove_year = sanitize_text_field($_POST['wuest_remove_year']);
         if (isset($yearly_prices[$remove_year])) {
@@ -208,7 +209,7 @@ function wuest_burner_hours_save_settings()
         }
     }
 
-    // Speichern der Änderungen
+    // Save changes to existing prices
     if (isset($_POST['wuest_prices'])) {
         foreach ($_POST['wuest_prices'] as $year => $price) {
             $year = sanitize_text_field($year);
@@ -233,7 +234,6 @@ function wuest_get_years_without_price($yearly_prices)
 {
     global $wpdb;
 
-    // Caching der Jahre ohne Preis
     $cache_key = 'wuest_years_without_price';
     $years_without_price = wp_cache_get($cache_key);
 
@@ -243,7 +243,7 @@ function wuest_get_years_without_price($yearly_prices)
             FROM $wpdb->postmeta 
             WHERE meta_key = 'arrival_date' 
             AND post_id IN (
-                SELECT ID FROM $wpdb->posts WHERE post_type = 'consumption_entry'
+                SELECT ID FROM $wpdb->posts WHERE post_type = 'uebernachtung'
             )
             ORDER BY meta_value ASC
         ");
